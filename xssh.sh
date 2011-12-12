@@ -33,18 +33,11 @@ xssh() {
         esac
     done
 
-    # Disable aliases temporary
-    oldExpandAliases=$(shopt -p expand_aliases)
-    shopt -u expand_aliases
-
     case "$nbargs" in
         0) echo "Vous devez spécifier un host" ;;
         1) _xssh "$@" ;;
-        *) ssh   "$@" ;;
+        *) \ssh   "$@" ;;
     esac
-
-    # Restore expand_aliases mode
-    eval "$oldExpandAliases"
 
 }
 typeset -f _ssh >/dev/null && shopt -u hostcomplete && complete -F _ssh xssh
