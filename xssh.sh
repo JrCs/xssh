@@ -1,10 +1,10 @@
 # Extended ssh
 xssh() {
     _timestamp() {
-	case "$OSTYPE" in
-	    Darwin*) stat -f %m "$1";;
-                  *) stat --printf='%Y' "$1";;
-	esac
+    case "${OSTYPE,,}" in
+        darwin*) stat -f %m "$1";;
+              *) stat --printf='%Y' "$1";;
+    esac
     }
     _xssh() {
         local source_script=$HOME/.xssh_rc 
