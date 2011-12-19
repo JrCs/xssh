@@ -1,5 +1,8 @@
 # Extended ssh
 xssh() {
+
+    ssh_bin=$(type -P ssh)
+
     _timestamp() {
     case "${OSTYPE,,}" in
         darwin*) stat -f %m "$1";;
@@ -17,7 +20,7 @@ xssh() {
             xssh_encrypt_timestamp=$(date '+%s')
         fi
         script_name=$(mktemp -u "/tmp/.xssh_${USER}_XXXXXXXXXXXXX")
-        ssh -t "$@" \
+        $ssh_bin -t "$@" \
          "export xssh_script=$script_name; echo '$xssh_encrypt_script' | \
          openssl enc -a -A -d | zcat >\$xssh_script; \
          exec bash --rcfile \$xssh_script";
@@ -36,9 +39,8 @@ xssh() {
     case "$nbargs" in
         0) echo "Vous devez spécifier un host" ;;
         1) _xssh "$@" ;;
-        *) \ssh   "$@" ;;
+        *) $ssh_bin "$@" ;;
     esac
-
 }
 typeset -f _ssh >/dev/null && shopt -u hostcomplete && complete -F _ssh xssh
 
