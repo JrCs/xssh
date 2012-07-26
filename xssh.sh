@@ -10,7 +10,7 @@ xssh() {
     esac
     }
     _xssh() {
-        local source_script=$HOME/.xssh_rc 
+        local source_script=$(readlink -e "$HOME/.xssh_rc")
         if [[ -z "$xssh_encrypt_script"    || \
               -z "$xssh_encrypt_timestamp" || \
               $( _timestamp $source_script ) -gt "$xssh_encrypt_timestamp" \
