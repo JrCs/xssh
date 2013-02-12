@@ -4,10 +4,17 @@ xssh() {
     ssh_bin=$(type -P ssh)
 
     _timestamp() {
-    case "${OSTYPE,,}" in
-        darwin*) stat -f %m "$1";;
-              *) stat --printf='%Y' "$1";;
-    esac
+        # Turn case-insensitive matching temporarily on, if necessary.
+        local nocasematchWasOff=0
+        shopt nocasematch >/dev/null || nocasematchWasOff=1
+        (( nocasematchWasOff )) && shopt -s nocasematch
+
+        case "${OSTYPE}" in
+            darwin*) stat -f %m "$1";;
+                  *) stat --printf='%Y' "$1";;
+        esac
+        # Restore state of 'nocasematch' option, if necessary.
+        (( nocasematchWasOff )) && shopt -u nocasematch
     }
     _xssh() {
         local source_script=$(readlink -e "$HOME/.xssh_rc")
