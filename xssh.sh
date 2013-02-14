@@ -1,26 +1,30 @@
 # Extended ssh
+
+declare -f _xssh_timestamp >/dev/null || {
+    # Turn case-insensitive matching temporarily on, if necessary.
+    nocasematchWasOff=0
+    shopt nocasematch >/dev/null || nocasematchWasOff=1
+    (( nocasematchWasOff )) && shopt -s nocasematch
+
+    case "${OSTYPE}" in
+        darwin*) _xssh_timestamp() { stat -f %m "$1"; } ;;
+              *) _xssh_timestamp() { stat --printf='%Y' "$1"; } ;;
+    esac
+
+    # Restore state of 'nocasematch' option, if necessary.
+    (( nocasematchWasOff )) && shopt -u nocasematch
+    unset nocasematchWasOff
+}
+
 xssh() {
 
     ssh_bin=$(type -P ssh)
 
-    _timestamp() {
-        # Turn case-insensitive matching temporarily on, if necessary.
-        local nocasematchWasOff=0
-        shopt nocasematch >/dev/null || nocasematchWasOff=1
-        (( nocasematchWasOff )) && shopt -s nocasematch
-
-        case "${OSTYPE}" in
-            darwin*) stat -f %m "$1";;
-                  *) stat --printf='%Y' "$1";;
-        esac
-        # Restore state of 'nocasematch' option, if necessary.
-        (( nocasematchWasOff )) && shopt -u nocasematch
-    }
     _xssh() {
         local source_script=$(readlink -e "$HOME/.xssh_rc")
         if [[ -z "$xssh_encrypt_script"    || \
               -z "$xssh_encrypt_timestamp" || \
-              $( _timestamp $source_script ) -gt "$xssh_encrypt_timestamp" \
+              $( _xssh_timestamp $source_script ) -gt "$xssh_encrypt_timestamp" \
            ]]; then
             echo "Using new \`$source_script' file as remote bash script..."
             xssh_encrypt_script=$( gzip --stdout $source_script | openssl enc -a -A )
