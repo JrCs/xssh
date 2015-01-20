@@ -6,9 +6,10 @@ declare -f _xssh_timestamp >/dev/null || {
     shopt nocasematch >/dev/null || nocasematchWasOff=1
     (( nocasematchWasOff )) && shopt -s nocasematch
 
+    target=$(readlink -e "$1")
     case "${OSTYPE}" in
-        darwin*) _xssh_timestamp() { stat -f %m "$1"; } ;;
-              *) _xssh_timestamp() { stat --printf='%Y' "$1"; } ;;
+        darwin*) _xssh_timestamp() { stat -f %m "$target" 2>/dev/null || echo 0; } ;;
+              *) _xssh_timestamp() { stat --printf='%Y' "$target" 2>/dev/null || echo 0; } ;;
     esac
 
     # Restore state of 'nocasematch' option, if necessary.
@@ -21,20 +22,30 @@ xssh() {
     ssh_bin=$(type -P ssh)
 
     _xssh() {
-        local source_script=$(readlink -e "$HOME/.xssh_rc")
+        local files=".xssh_rc"
+        [[ -d "$HOME/.xssh_rc.d" ]] && files="$files .xssh_rc.d"
         if [[ -z "$xssh_encrypt_script"    || \
               -z "$xssh_encrypt_timestamp" || \
-              $( _xssh_timestamp $source_script ) -gt "$xssh_encrypt_timestamp" \
+              $( _xssh_timestamp "$HOME/.xssh_rc") -gt "$xssh_encrypt_timestamp" || \
+              $( _xssh_timestamp "$HOME/.xssh_rc.d") -gt "$xssh_encrypt_timestamp"  \
            ]]; then
-            echo "Using new \`$source_script' file as remote bash script..."
-            xssh_encrypt_script=$( gzip --stdout $source_script | openssl enc -a -A )
+            echo "Using new .xssh_rc and .xssh_rc.d files..."
+            xssh_encrypt_script=$( tar cj -h -C "$HOME" $files | openssl enc -a -A )
+            xssh_encrypt_script_size=$( echo "$xssh_encrypt_script" | wc -c)
+            if [[ "$xssh_encrypt_script_size" -gt 128000 ]]; then
+                echo -e ".xssh_rc and .xssh_rc.d files must be less than 128kb\ncurrent size: $xssh_encrypt_script_size bytes" >&2
+                return 1
+            fi
+            # echo "$xssh_encrypt_script_size"
             xssh_encrypt_timestamp=$(date '+%s')
         fi
-        script_name=$(mktemp -u "/tmp/.xssh_${USER}_XXXXXXXXXXXXX")
-        $ssh_bin -t "$@" \
-         "export xssh_script=$script_name; echo '$xssh_encrypt_script' | \
-         openssl enc -a -A -d | zcat >\$xssh_script; \
-         exec bash --rcfile \$xssh_script";
+        #set -xv
+         $ssh_bin -t "$@" \
+"export XSSH_HOME=\$(mktemp -d -t .xssh_$USER.XXXX)
+echo '$xssh_encrypt_script' | openssl enc -a -A -d | tar xj -C \$XSSH_HOME
+trap \"rm -rf \$XSSH_HOME\" 0
+bash --rcfile \$XSSH_HOME/.xssh_rc";
+        #set +xv
     }
 
     local nbargs word script_name oldExpandAliases
